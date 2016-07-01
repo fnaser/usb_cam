@@ -57,6 +57,7 @@ extern "C"
 
 #include <sensor_msgs/Image.h>
 
+
 namespace usb_cam {
 
 class UsbCam {
@@ -146,6 +147,7 @@ class UsbCam {
   int avframe_rgb_size_;
   struct SwsContext *video_sws_;
   camera_image_t *image_;
+
 
 };
 

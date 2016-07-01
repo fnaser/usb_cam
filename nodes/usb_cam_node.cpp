@@ -40,6 +40,9 @@
 #include <camera_info_manager/camera_info_manager.h>
 #include <sstream>
 #include <std_srvs/Empty.h>
+#include <diagnostic_updater/diagnostic_updater.h> // Headers for publishing diagnostic messages.
+#include <diagnostic_updater/publisher.h>
+
 
 namespace usb_cam {
 
@@ -66,6 +69,10 @@ public:
 
   ros::ServiceServer service_start_, service_stop_;
 
+  //diagnostics:
+  double expected_freq_;
+  diagnostic_updater::Updater* diagnostics_;
+  diagnostic_updater::HeaderlessTopicDiagnostic* diag_pub_;
 
 
   bool service_start_cap(std_srvs::Empty::Request  &req, std_srvs::Empty::Response &res )
@@ -87,6 +94,7 @@ public:
     // advertise the main image topic
     image_transport::ImageTransport it(node_);
     image_pub_ = it.advertiseCamera("image_raw", 1);
+    
 
     // grab the parameters
     node_.param("video_device", video_device_name_, std::string("/dev/video0"));
@@ -133,6 +141,7 @@ public:
       cinfo_->setCameraInfo(camera_info);
     }
 
+    
 
     ROS_INFO("Starting '%s' (%s) at %dx%d via %s (%s) at %i FPS", camera_name_.c_str(), video_device_name_.c_str(),
         image_width_, image_height_, io_method_name_.c_str(), pixel_format_name_.c_str(), framerate_);
@@ -219,6 +228,11 @@ public:
         cam_.set_v4l_parameter("focus_absolute", focus_);
       }
     }
+    //diagnostics:
+    diagnostics_ = new diagnostic_updater::Updater();
+    diagnostics_->setHardwareID(video_device_name_);
+    expected_freq_ = 25;
+    diag_pub_ = new diagnostic_updater::HeaderlessTopicDiagnostic("image_raw", *diagnostics_, diagnostic_updater::FrequencyStatusParam(&expected_freq_, &expected_freq_, 0.1, 10));
   }
 
   virtual ~UsbCamNode()
@@ -238,6 +252,8 @@ public:
 
     // publish the image
     image_pub_.publish(img_, *ci);
+    diag_pub_->tick();
+    diagnostics_->update();
 
     return true;
   }
